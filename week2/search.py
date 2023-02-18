@@ -55,6 +55,7 @@ def process_filters(filters_input):
 
     return filters, display_filters, applied_filters
 
+
 @bp.route('/autocomplete', methods=['GET'])
 def autocomplete():
     results = {}
@@ -62,15 +63,33 @@ def autocomplete():
         prefix = request.args.get("prefix")
         print(f"Prefix: {prefix}")
         if prefix is not None:
-            type = request.args.get("type", "queries") # If type == queries, this is an autocomplete request, else if products, it's an instant search request.
+            type = request.args.get("type",
+                                    "queries")  # If type == queries, this is an autocomplete request, else if products, it's an instant search request.
             ##### W2, L3, S1
-            search_response = None
+            query_obj = {
+                "suggest": {
+                    "autocomplete": {
+                        "prefix": prefix,
+                        "completion": {
+                            "field": "suggest"
+                        }
+                    }
+                }
+            }
+            if type == "queries":
+                index_name = "bbuy_queries"
+            else:
+                index_name = "bbuy_products"
 
+            searcher = get_opensearch()
+            search_response = searcher.search(body=query_obj, index=index_name)
             print("TODO: implement autocomplete AND instant search")
-            if (search_response and search_response['suggest']['autocomplete'] and search_response['suggest']['autocomplete'][0]['length'] > 0): # just a query response
+            if (search_response and search_response['suggest']['autocomplete'] and
+                    search_response['suggest']['autocomplete'][0]['length'] > 0):  # just a query response
                 results = search_response['suggest']['autocomplete'][0]['options']
     print(f"Results: {results}")
     return {"completions": results}
+
 
 @bp.route('/query', methods=['GET', 'POST'])
 def query():
@@ -105,7 +124,8 @@ def query():
         if explain_val == "true":
             explain = True
 
-        query_obj = qu.create_query(user_query,  [], sort, sortDir, size=20)  # We moved create_query to a utility class so we could use it elsewhere.
+        query_obj = qu.create_query(user_query, [], sort, sortDir,
+                                    size=20)  # We moved create_query to a utility class so we could use it elsewhere.
         ##### W2, L1, S2
 
         ##### W2, L2, S2
@@ -120,24 +140,23 @@ def query():
             explain = True
         if filters_input:
             (filters, display_filters, applied_filters) = process_filters(filters_input)
-        query_obj = qu.create_query(user_query,  filters, sort, sortDir, size=20)
+        query_obj = qu.create_query(user_query, filters, sort, sortDir, size=20)
         #### W2, L1, S2
 
         ##### W2, L2, S2
-        qu.add_spelling_suggestions(query_obj=query_obj,user_query=user_query)
+        qu.add_spelling_suggestions(query_obj=query_obj, user_query=user_query)
 
     else:
         query_obj = qu.create_query("*", "", [], sort, sortDir, size=100)
 
-    #print("query obj: {}".format(query_obj))
+    # print("query obj: {}".format(query_obj))
     response = opensearch.search(body=query_obj, index="bbuy_products", explain=explain)
     # Postprocess results here if you so desire
 
-    #print(response)
+    # print(response)
     if error is None:
         return render_template("search_results.jinja2", query=user_query, search_response=response,
                                display_filters=display_filters, applied_filters=applied_filters,
                                sort=sort, sortDir=sortDir, explain=explain, autocompleteSelect=autocompleteSelect)
     else:
         redirect(url_for("index"))
-
