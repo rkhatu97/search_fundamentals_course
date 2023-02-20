@@ -72,6 +72,7 @@ def autocomplete():
                         "prefix": prefix,
                         "completion": {
                             "field": "suggest"
+                            "skip_duplicates": True
                         }
                     }
                 }
@@ -129,6 +130,7 @@ def query():
         ##### W2, L1, S2
 
         ##### W2, L2, S2
+        qu.add_spelling_suggestions(query_obj=query_obj, user_query=user_query)
         print("Plain ol q: %s" % query_obj)
     elif request.method == 'GET':  # Handle the case where there is no query or just loading the page
         user_query = request.args.get("query", "*")
